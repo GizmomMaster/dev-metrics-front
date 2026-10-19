@@ -1,0 +1,12 @@
+services:
+  dev-metrics-front:
+    build: .
+    image: dev-metrics-front:latest
+    ports:
+      - "${FRONT_PORT:-8080}:80"
+    environment:
+      # Бэкенд DevMetrics.Api. По умолчанию — API, запущенный на хост-машине.
+      API_UPSTREAM: ${API_UPSTREAM:-http://host.docker.internal:5232}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    restart: unless-stopped
