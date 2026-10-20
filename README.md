@@ -12,8 +12,8 @@
 
 ## Как устроено
 
-- `Dockerfile` — двухэтапная сборка: `node:20` собирает SPA (`npm run build` → `dist/`),
-  `nginx:1.27-alpine` раздаёт статику.
+- `Dockerfile` — двухэтапная сборка: `node:22` собирает SPA (`npm run build` → `dist/`),
+  `nginx:1.28-alpine` раздаёт статику.
 - nginx (`docker/nginx.conf.template`):
   - отдаёт SPA с fallback на `index.html` для клиентского роутинга;
   - проксирует `/api/*` на бэкенд, адрес которого задаётся переменной `API_UPSTREAM`.
@@ -76,7 +76,9 @@ npm test        # vitest
 npm run build   # сборка в dist/
 ```
 
-Node 18 ниже формальных требований Vite/Tailwind (`>=20`), поэтому `vite` закреплён на `^5.4`.
+Нужен Node 22.12+ (Vite 8 и Vitest 5; версия закреплена в `.nvmrc` и `engines`):
+`nvm install && nvm use`. На Node 18 сборка и тесты не запустятся.
+
 Если `vite` падает с «Cannot find native binding» (баг npm/cli#4828 с `@tailwindcss/oxide`):
 `npm install @tailwindcss/oxide-linux-x64-gnu@<версия> --no-save`.
 
