@@ -4,6 +4,7 @@ import { useQuery } from '@tanstack/react-query';
 import { getAvailableMonths, getCatalog, getHallOfFame, type AvailableMonth, type HallOfFameEntry } from '../api/achievements';
 import EmptyState from '../components/EmptyState';
 import QueryError from '../components/QueryError';
+import ActivityLink, { isClickOnLink } from '../components/ActivityLink';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import MonthPicker, { formatMonthLabel } from '../components/MonthPicker';
@@ -113,10 +114,12 @@ export default function HallOfFamePage() {
               {sortedEntries.map((entry) => (
                 <TableRow
                   key={entry.employeeId}
-                  onClick={() => navigate(`/activity/${entry.employeeId}`)}
+                  onClick={(e) => !isClickOnLink(e) && navigate(`/activity/${entry.employeeId}`)}
                   className="cursor-pointer"
                 >
-                  <TableCell className="font-medium">{entry.fullName}</TableCell>
+                  <TableCell className="font-medium">
+                    <ActivityLink employeeId={entry.employeeId}>{entry.fullName}</ActivityLink>
+                  </TableCell>
                   <TableCell className="text-right tabular-nums text-muted-foreground">{entry.achievements.length}</TableCell>
                   <TableCell>
                     <AchievementBadges achievements={entry.achievements} size="lg" className="justify-end" />

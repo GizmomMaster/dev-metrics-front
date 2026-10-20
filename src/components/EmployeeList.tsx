@@ -1,6 +1,7 @@
 import { EmployeeBrief } from '../api/employees';
 import EmployeeTags, { buildEmployeeTags } from './EmployeeTags';
 import AchievementBadges from './AchievementBadges';
+import ActivityLink, { isClickOnLink } from './ActivityLink';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { cn } from '@/lib/utils';
@@ -28,12 +29,14 @@ export default function EmployeeList({ employees, onSelect }: Props) {
           {employees.map((employee) => (
             <TableRow
               key={employee.id}
-              onClick={() => onSelect(employee.id)}
+              onClick={(e) => !isClickOnLink(e) && onSelect(employee.id)}
               className={cn('cursor-pointer', !employee.isActive && 'text-muted-foreground')}
             >
               <TableCell>
                 <div className="flex items-center gap-2">
-                  <span className="font-medium whitespace-nowrap">{employee.fullName}</span>
+                  <ActivityLink employeeId={employee.id} className="font-medium whitespace-nowrap">
+                    {employee.fullName}
+                  </ActivityLink>
                   {!employee.isActive && (
                     <Badge variant="outline" title="Сотрудник неактивен (уволен)">
                       неактивен

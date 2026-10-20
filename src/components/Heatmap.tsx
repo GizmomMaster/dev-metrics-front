@@ -115,12 +115,6 @@ export default function Heatmap({ data, reviewData, approvalData, lateData, vaca
   }, []);
 
   const { weeks, monthLabels } = useMemo(() => {
-    const dataMap = new Map<string, number>();
-    for (const d of data) {
-      const key = d.date.split('T')[0];
-      dataMap.set(key, (dataMap.get(key) || 0) + d.count);
-    }
-
     const startDateAligned = startOfWeek(start, { weekStartsOn: 1 });
     const endDateAligned = endOfWeek(end, { weekStartsOn: 1 });
     const allDays = eachDayOfInterval({ start: startDateAligned, end: endDateAligned });
@@ -158,7 +152,7 @@ export default function Heatmap({ data, reviewData, approvalData, lateData, vaca
     flushSpan(weeks.length);
 
     return { weeks, monthLabels };
-  }, [data, end, start]);
+  }, [end, start]);
 
   const dataMap = useMemo(() => buildDayCountMap(data), [data]);
   const reviewDataMap = useMemo(() => buildDayCountMap(reviewData ?? []), [reviewData]);
@@ -230,7 +224,10 @@ export default function Heatmap({ data, reviewData, approvalData, lateData, vaca
                     ? hasActivity
                       ? 'bg-green-200 border-green-300 ring-2 ring-blue-400 hover:ring-2 hover:ring-blue-500'
                       : 'bg-green-200 border-green-300 hover:ring-1 hover:ring-green-400'
-                    : `${COLORS[level]} ${isWeekend && count === 0 ? 'bg-gray-50' : ''} hover:ring-1 hover:ring-gray-400`;
+                    : // Пустой выходной — отдельный, более светлый фон вместо COLORS[0], а не
+                      // дописанный к нему класс: при двух bg-* на элементе побеждал бы тот,
+                      // что раньше в CSS, и подсветка выходных не применялась.
+                      `${isWeekend && count === 0 ? 'bg-gray-50 border-gray-200' : COLORS[level]} hover:ring-1 hover:ring-gray-400`;
 
                   // outline, а не ring/border — тоненькая рамка поверх любого фона
                   // (включая vacation+activity, который уже занял ring под свой индикатор)

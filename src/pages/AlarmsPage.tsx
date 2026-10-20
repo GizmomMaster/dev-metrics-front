@@ -6,6 +6,7 @@ import { ru } from 'date-fns/locale';
 import { HelpCircle, Moon, Palmtree } from 'lucide-react';
 import EmptyState from '../components/EmptyState';
 import QueryError from '../components/QueryError';
+import ActivityLink, { isClickOnLink } from '../components/ActivityLink';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -110,7 +111,7 @@ export default function AlarmsPage() {
               {visible.map((alarm) => (
                 <TableRow
                   key={alarm.employeeId}
-                  onClick={() => navigate(`/activity/${alarm.employeeId}`)}
+                  onClick={(e) => !isClickOnLink(e) && navigate(`/activity/${alarm.employeeId}`)}
                   className="cursor-pointer"
                 >
                   <TableCell>
@@ -120,7 +121,9 @@ export default function AlarmsPage() {
                       ) : (
                         <Moon className="size-4 shrink-0 text-indigo-500" />
                       )}
-                      <span className="truncate font-medium">{alarm.fullName}</span>
+                      <ActivityLink employeeId={alarm.employeeId} className="truncate font-medium">
+                        {alarm.fullName}
+                      </ActivityLink>
                       {alarm.isOnVacation && (
                         <Badge variant="secondary">
                           <Palmtree /> В отпуске
