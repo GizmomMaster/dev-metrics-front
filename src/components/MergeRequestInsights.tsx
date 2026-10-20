@@ -34,14 +34,21 @@ export default function MergeRequestInsights({ reviewData }: MergeRequestInsight
   }, [mergedReviews]);
 
   const approvalStats = useMemo(() => {
-    const withApproval = mergedReviews.filter((r) => r.firstApprovalAt);
+    // Только апрувы внутри интервала «открыт → смёржен»: апрув после мержа давал
+    // долю больше 100%, а апрув раньше открытия (рассинхрон данных) — отрицательную,
+    // и оба искажали среднее.
+    const withApproval = mergedReviews
+      .filter((r) => r.firstApprovalAt)
+      .map((r) => ({
+        openedMs: new Date(r.prOpenedAt).getTime(),
+        mergedMs: new Date(r.mergedAt!).getTime(),
+        approvedMs: new Date(r.firstApprovalAt!).getTime(),
+      }))
+      .filter(({ openedMs, mergedMs, approvedMs }) => approvedMs >= openedMs && approvedMs <= mergedMs);
     if (withApproval.length === 0) return null;
     let percentSum = 0;
     let hoursSum = 0;
-    for (const r of withApproval) {
-      const openedMs = new Date(r.prOpenedAt).getTime();
-      const mergedMs = new Date(r.mergedAt!).getTime();
-      const approvedMs = new Date(r.firstApprovalAt!).getTime();
+    for (const { openedMs, mergedMs, approvedMs } of withApproval) {
       hoursSum += (approvedMs - openedMs) / 3_600_000;
       percentSum += ((approvedMs - openedMs) / (mergedMs - openedMs)) * 100;
     }

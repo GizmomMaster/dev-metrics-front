@@ -7,6 +7,7 @@ import {
   subDays,
   differenceInCalendarDays,
   format,
+  parseISO,
 } from 'date-fns';
 import { ru } from 'date-fns/locale';
 import { Armchair } from 'lucide-react';
@@ -20,7 +21,7 @@ interface Props {
   data: DayData[];
   reviewData?: DayData[];
   approvalData?: DayData[];
-  lateData?: DayData[]; // коммиты после 20:00 или до 6:00
+  lateData?: DayData[]; // коммиты после 20:00 или до 6:00 UTC
   vacationDates?: Set<string>; // YYYY-MM-DD строки — дни отпуска
   officeVisitDates?: Set<string>; // YYYY-MM-DD строки — дни работы из офиса
   startDate?: Date;
@@ -306,7 +307,7 @@ export default function Heatmap({ data, reviewData, approvalData, lateData, vaca
           className="fixed z-50 bg-foreground text-background text-xs rounded-md shadow-md px-3 py-2 pointer-events-none"
           style={{ left: tooltip.x, top: tooltip.y - 50 }}
         >
-          <div className="font-medium">{format(new Date(tooltip.dateStr), 'dd.MM.yyyy', { locale: ru })}</div>
+          <div className="font-medium">{format(parseISO(tooltip.dateStr), 'dd.MM.yyyy', { locale: ru })}</div>
           <div className="flex items-center gap-2 text-blue-300 mt-0.5">
             <div className="w-2 h-2 rounded-full bg-blue-400"></div>
             {tooltip.count} коммитов
@@ -321,7 +322,7 @@ export default function Heatmap({ data, reviewData, approvalData, lateData, vaca
           </div>
           <div className="flex items-center gap-2 text-red-300 mt-0.5">
             <div className="w-2 h-2 rounded-full bg-red-500"></div>
-            {tooltip.lateCount} коммитов после 20:00 или до 6:00
+            {tooltip.lateCount} коммитов после 20:00 или до 6:00 UTC
           </div>
           {tooltip.isVacation && (
             <div className="flex items-center gap-2 text-green-300 mt-0.5">

@@ -17,7 +17,7 @@ export type AlarmKind = 'silent' | 'late';
 
 const FILTERS: { kind: AlarmKind; icon: typeof HelpCircle; description: string }[] = [
   { kind: 'silent', icon: HelpCircle, description: 'Нет коммитов больше двух недель' },
-  { kind: 'late', icon: Moon, description: 'Коммиты после 20:00 или до 6:00' },
+  { kind: 'late', icon: Moon, description: 'Коммиты после 20:00 или до 6:00 UTC' },
 ];
 
 // Пустое множество трактуем как «показать всё» — та же семантика, что у фильтра

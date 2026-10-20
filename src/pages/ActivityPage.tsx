@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { format, subDays, eachDayOfInterval } from 'date-fns';
+import { format, subDays, eachDayOfInterval, parseISO } from 'date-fns';
 import { ru } from 'date-fns/locale';
 import { getEmployee } from '../api/employees';
 import type { PeriodFetcher } from '../api/metrics';
@@ -205,7 +205,7 @@ export default function ActivityPage() {
     [commits]
   );
 
-  // Коммиты вне окна 06:00–20:00 — индикация сверхурочной работы на heatmap.
+  // Коммиты вне окна 06:00–20:00 UTC — индикация сверхурочной работы на heatmap.
   // Ранний коммит (например, 02:00) не переносится на предыдущий день:
   // засчитывается в те сутки, что стоят в его собственном timestamp.
   const lateDayData = useMemo(
@@ -264,7 +264,9 @@ export default function ActivityPage() {
   const vacationDateSet = useMemo(() => {
     const set = new Set<string>();
     for (const v of vacations) {
-      for (const day of eachDayOfInterval({ start: new Date(v.startDate), end: new Date(v.endDate) })) {
+      // parseISO, а не new Date: строку "yyyy-MM-dd" new Date разбирает как
+      // полночь UTC, и западнее Гринвича отпуск съезжал бы на день раньше.
+      for (const day of eachDayOfInterval({ start: parseISO(v.startDate), end: parseISO(v.endDate) })) {
         set.add(format(day, 'yyyy-MM-dd'));
       }
     }
