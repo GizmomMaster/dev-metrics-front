@@ -1,6 +1,6 @@
 import { createContext, useContext, useState, useCallback, ReactNode } from 'react';
 import { login as apiLogin, LoginRequest, logout as apiLogout } from '../api/auth';
-import { TOKEN_KEY, storeTokens } from '../api/client';
+import { TOKEN_KEY, redirectToLogin, storeTokens } from '../api/client';
 
 interface AuthContextType {
   isAuthenticated: boolean;
@@ -20,9 +20,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const logout = useCallback(async () => {
-    await apiLogout();
-    setIsAuthenticated(false);
-    window.location.href = '/login';
+    try {
+      await apiLogout();
+    } finally {
+      // Токены локально стёрты в любом случае — даже если сервер недоступен,
+      // оставаться на защищённой странице бессмысленно.
+      setIsAuthenticated(false);
+      redirectToLogin();
+    }
   }, []);
 
   return (
