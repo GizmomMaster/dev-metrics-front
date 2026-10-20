@@ -5,6 +5,7 @@ import { format } from 'date-fns';
 import { ru } from 'date-fns/locale';
 import { HelpCircle, Moon, Palmtree } from 'lucide-react';
 import EmptyState from '../components/EmptyState';
+import QueryError from '../components/QueryError';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -42,7 +43,7 @@ export default function AlarmsPage() {
   const navigate = useNavigate();
   const [activeKinds, setActiveKinds] = useState<Set<AlarmKind>>(new Set(['silent', 'late']));
 
-  const { data: alarms = [], isLoading } = useQuery({
+  const { data: alarms = [], isLoading, isLoadingError, refetch } = useQuery({
     queryKey: ['alarms'],
     queryFn: getAlarms,
   });
@@ -88,6 +89,8 @@ export default function AlarmsPage() {
 
       {isLoading ? (
         <Skeleton className="h-48 w-full" />
+      ) : isLoadingError ? (
+        <QueryError title="Не удалось загрузить алармы" onRetry={() => void refetch()} />
       ) : visible.length === 0 ? (
         <EmptyState>
           {alarms.length === 0

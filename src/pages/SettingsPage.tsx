@@ -4,6 +4,7 @@ import { format } from 'date-fns';
 import { ru } from 'date-fns/locale';
 import { Plus, Pencil, Trash2, Check, X, CheckCircle2, XCircle, HelpCircle, Play, Loader2 } from 'lucide-react';
 import EmptyState from '../components/EmptyState';
+import QueryError from '../components/QueryError';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -85,7 +86,7 @@ export default function SettingsPage() {
   // и убираем из "выполняющихся" (см. эффект ниже).
   const [pendingJobs, setPendingJobs] = useState<Record<string, string | null>>({});
 
-  const { data: projects = [], isLoading } = useQuery({
+  const { data: projects = [], isLoading, isLoadingError, refetch: refetchProjects } = useQuery({
     queryKey: QUERY_KEY,
     queryFn: getInternalProjects,
   });
@@ -96,7 +97,12 @@ export default function SettingsPage() {
   // запущенные вручную джобы, опрашиваем чаще — Hangfire выполняет их асинхронно,
   // и без этого статус "Успешно"/"Не удалось" появился бы только после того, как
   // пользователь сам перезагрузит страницу.
-  const { data: backgroundJobs = [], isLoading: isLoadingJobs } = useQuery({
+  const {
+    data: backgroundJobs = [],
+    isLoading: isLoadingJobs,
+    isLoadingError: isJobsLoadingError,
+    refetch: refetchJobs,
+  } = useQuery({
     queryKey: JOBS_QUERY_KEY,
     queryFn: getBackgroundJobs,
     refetchInterval: hasPendingJobs ? 2000 : false,
@@ -224,6 +230,8 @@ export default function SettingsPage() {
 
           {isLoading ? (
             <Skeleton className="h-24 w-full" />
+          ) : isLoadingError ? (
+            <QueryError title="Не удалось загрузить список репозиториев" onRetry={() => void refetchProjects()} />
           ) : projects.length === 0 ? (
             <EmptyState className="py-8">Список пуст — ни один репозиторий не помечен как внутрикорпоративный</EmptyState>
           ) : (
@@ -334,6 +342,8 @@ export default function SettingsPage() {
 
           {isLoadingJobs ? (
             <Skeleton className="h-48 w-full" />
+          ) : isJobsLoadingError ? (
+            <QueryError title="Не удалось загрузить фоновые задачи" onRetry={() => void refetchJobs()} />
           ) : backgroundJobs.length === 0 ? (
             <EmptyState className="py-8">Нет зарегистрированных фоновых задач</EmptyState>
           ) : (

@@ -6,6 +6,7 @@ import EmployeeCard from '../components/EmployeeCard';
 import { POSITION_LABELS } from '../components/EmployeeTags';
 import EmployeeList from '../components/EmployeeList';
 import EmptyState from '../components/EmptyState';
+import QueryError from '../components/QueryError';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -43,7 +44,7 @@ export default function EmployeesPage() {
     localStorage.setItem(VIEW_MODE_KEY, mode);
   };
 
-  const { data: employees = [], isLoading } = useQuery({
+  const { data: employees = [], isLoading, isLoadingError, refetch } = useQuery({
     queryKey: ['employees', includeInactive],
     queryFn: () => getEmployees(includeInactive),
   });
@@ -127,6 +128,8 @@ export default function EmployeesPage() {
 
       {isLoading ? (
         <Skeleton className="h-48 w-full" />
+      ) : isLoadingError ? (
+        <QueryError title="Не удалось загрузить список сотрудников" onRetry={() => void refetch()} />
       ) : filtered.length === 0 ? (
         <EmptyState>Сотрудники не найдены</EmptyState>
       ) : effectiveViewMode === 'list' ? (

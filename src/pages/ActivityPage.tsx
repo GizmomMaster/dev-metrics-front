@@ -19,6 +19,7 @@ import AchievementBadges from '../components/AchievementBadges';
 import PeriodPicker, { PERIOD_PRESETS } from '../components/PeriodPicker';
 import EmployeeTags, { buildEmployeeTags } from '../components/EmployeeTags';
 import StatTile from '../components/StatTile';
+import QueryError from '../components/QueryError';
 import { ArrowLeft, GitCommit, GitPullRequest, ThumbsUp, Cpu } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -92,6 +93,12 @@ export function averagePerActiveDay(days: readonly DayCount[]): number {
   return Math.round(sumCounts(days) / days.length);
 }
 
+/**
+ * Общая пустая заглушка вместо `data = []`: новый массив на каждом рендере
+ * пока идёт загрузка сбрасывал бы мемоизацию всех производных рядов ниже.
+ */
+const NO_ROWS: never[] = [];
+
 /** Период, за который страница запрашивает все метрики сотрудника. */
 interface EmployeePeriod {
   id: string | undefined;
@@ -106,13 +113,12 @@ interface EmployeePeriod {
  * ключом кэша и функцией загрузки — остальное (границы периода в ключе,
  * enabled по наличию id, пустой массив по умолчанию) было скопировано.
  */
-function useEmployeeMetric<T>(key: string, fetcher: PeriodFetcher<T>, period: EmployeePeriod): T[] {
-  const { data = [] } = useQuery({
+function useEmployeeMetric<T>(key: string, fetcher: PeriodFetcher<T>, period: EmployeePeriod) {
+  return useQuery({
     queryKey: [key, period.id, period.startDateStr, period.endDateStr],
     queryFn: () => fetcher(period.id!, period.startDate, period.endDate),
     enabled: !!period.id,
   });
-  return data;
 }
 
 export default function ActivityPage() {
@@ -138,26 +144,50 @@ export default function ActivityPage() {
   }, [id, periodDays]);
   const { startDate, endDate } = period;
 
-  const { data: employee } = useQuery({
+  const employeeQuery = useQuery({
     queryKey: ['employee', id],
     queryFn: () => getEmployee(id!),
     enabled: !!id,
   });
+  const employee = employeeQuery.data;
 
-  const commits = useEmployeeMetric('commits', getCommits, period);
-  const reviews = useEmployeeMetric('reviews', getReviews, period);
-  const vacations = useEmployeeMetric('vacations', getVacations, period);
-  const officeVisits = useEmployeeMetric('officeVisits', getOfficeVisits, period);
-  const aiTokenUsage = useEmployeeMetric('aiTokenUsage', getAiTokenUsage, period);
-  const issues = useEmployeeMetric('issues', getIssues, period);
-  const qualityGateChanges = useEmployeeMetric('qualityGate', getQualityGateImprovements, period);
+  const commitsQuery = useEmployeeMetric('commits', getCommits, period);
+  const reviewsQuery = useEmployeeMetric('reviews', getReviews, period);
+  const vacationsQuery = useEmployeeMetric('vacations', getVacations, period);
+  const officeVisitsQuery = useEmployeeMetric('officeVisits', getOfficeVisits, period);
+  const aiTokenUsageQuery = useEmployeeMetric('aiTokenUsage', getAiTokenUsage, period);
+  const issuesQuery = useEmployeeMetric('issues', getIssues, period);
+  const qualityGateQuery = useEmployeeMetric('qualityGate', getQualityGateImprovements, period);
 
   // Список репозиториев не зависит от выбранного сотрудника/периода — один
   // и тот же запрос для всех, кэшируется react-query по умолчанию.
-  const { data: repositories = [] } = useQuery({
+  const repositoriesQuery = useQuery({
     queryKey: ['repositories'],
     queryFn: getRepositories,
   });
+
+  const commits = commitsQuery.data ?? NO_ROWS;
+  const reviews = reviewsQuery.data ?? NO_ROWS;
+  const vacations = vacationsQuery.data ?? NO_ROWS;
+  const officeVisits = officeVisitsQuery.data ?? NO_ROWS;
+  const aiTokenUsage = aiTokenUsageQuery.data ?? NO_ROWS;
+  const issues = issuesQuery.data ?? NO_ROWS;
+  const qualityGateChanges = qualityGateQuery.data ?? NO_ROWS;
+  const repositories = repositoriesQuery.data ?? NO_ROWS;
+
+  // Упавший запрос иначе неотличим от «активности не было»: плитки и графики
+  // показали бы нули. Поэтому один общий баннер над всеми блоками.
+  const failedQueries = [
+    employeeQuery,
+    commitsQuery,
+    reviewsQuery,
+    vacationsQuery,
+    officeVisitsQuery,
+    aiTokenUsageQuery,
+    issuesQuery,
+    qualityGateQuery,
+    repositoriesQuery,
+  ].filter((q) => q.isLoadingError);
 
   const internalRepoNames = useMemo(
     () => repositories.filter((r) => r.isInternalProject).map((r) => r.name),
@@ -264,6 +294,14 @@ export default function ActivityPage() {
         </span>
         <PeriodPicker days={periodDays} onChange={setPeriodDays} />
       </div>
+
+      {failedQueries.length > 0 && (
+        <QueryError
+          title="Не удалось загрузить часть данных"
+          description="Показатели ниже могут быть неполными или нулевыми."
+          onRetry={() => failedQueries.forEach((q) => void q.refetch())}
+        />
+      )}
 
       {employee && (
         <Card>
