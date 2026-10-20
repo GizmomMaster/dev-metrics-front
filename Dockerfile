@@ -17,6 +17,7 @@ FROM nginx:1.28-alpine
 ENV API_UPSTREAM=http://host.docker.internal:5232
 
 COPY docker/nginx.conf.template /etc/nginx/templates/default.conf.template
+COPY docker/security-headers.conf /etc/nginx/snippets/security-headers.conf
 COPY --from=build /app/dist /usr/share/nginx/html
 
 EXPOSE 80
