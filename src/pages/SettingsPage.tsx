@@ -4,6 +4,7 @@ import { format } from 'date-fns';
 import { ru } from 'date-fns/locale';
 import { Plus, Pencil, Trash2, Check, X, CheckCircle2, XCircle, HelpCircle, Play, Loader2 } from 'lucide-react';
 import EmptyState from '../components/EmptyState';
+import QueryError from '../components/QueryError';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -44,7 +45,26 @@ function formatJobDate(value: string | null, fallback: string): string {
   return format(new Date(value), 'd MMMM yyyy, HH:mm', { locale: ru });
 }
 
+// Промежуточные состояния Hangfire: задача поставлена в очередь или выполняется,
+// результата ещё нет. Раньше любое состояние, кроме Succeeded, рисовалось красным
+// как ошибка — включая Enqueued сразу после нажатия «Запустить».
+const IN_PROGRESS_STATES: Record<string, string> = {
+  Enqueued: 'В очереди',
+  Scheduled: 'Запланирована',
+  Awaiting: 'Ожидает',
+  Processing: 'Выполняется',
+};
+
+const isJobInProgress = (job: BackgroundJobDto) => job.lastJobState !== null && job.lastJobState in IN_PROGRESS_STATES;
+
 function JobStatusBadge({ state }: { state: string | null }) {
+  if (state !== null && state in IN_PROGRESS_STATES) {
+    return (
+      <span className="inline-flex items-center gap-1 text-muted-foreground">
+        <Loader2 className="size-4 animate-spin" /> {IN_PROGRESS_STATES[state]}
+      </span>
+    );
+  }
   if (state === 'Succeeded') {
     return (
       <span className="inline-flex items-center gap-1 text-emerald-700">
@@ -68,9 +88,12 @@ function JobStatusBadge({ state }: { state: string | null }) {
 
 // Бэкенд отвечает { Error: "..." } (см. InternalProjectsController) — вытаскиваем
 // текст, чтобы показать причину отказа (дубль/пустое имя), а не общее «не удалось».
+// При camelCase-политике сериализации ASP.NET (по умолчанию) поле приходит как
+// `error`, поэтому проверяем оба написания.
 function errorMessage(error: unknown, fallback: string): string {
-  const response = (error as { response?: { data?: { Error?: string } } })?.response;
-  return response?.data?.Error ?? fallback;
+  const data = (error as { response?: { data?: { error?: unknown; Error?: unknown } } })?.response?.data;
+  const message = data?.error ?? data?.Error;
+  return typeof message === 'string' && message ? message : fallback;
 }
 
 export default function SettingsPage() {
@@ -85,7 +108,7 @@ export default function SettingsPage() {
   // и убираем из "выполняющихся" (см. эффект ниже).
   const [pendingJobs, setPendingJobs] = useState<Record<string, string | null>>({});
 
-  const { data: projects = [], isLoading } = useQuery({
+  const { data: projects = [], isLoading, isLoadingError, refetch: refetchProjects } = useQuery({
     queryKey: QUERY_KEY,
     queryFn: getInternalProjects,
   });
@@ -93,13 +116,24 @@ export default function SettingsPage() {
   const hasPendingJobs = Object.keys(pendingJobs).length > 0;
 
   // Отдельный, независимый от секции репозиториев запрос. Пока есть только что
-  // запущенные вручную джобы, опрашиваем чаще — Hangfire выполняет их асинхронно,
-  // и без этого статус "Успешно"/"Не удалось" появился бы только после того, как
+  // запущенные вручную джобы или джобы в промежуточном состоянии (в очереди,
+  // выполняется), опрашиваем чаще — Hangfire выполняет их асинхронно, и без
+  // этого статус "Успешно"/"Не удалось" появился бы только после того, как
   // пользователь сам перезагрузит страницу.
-  const { data: backgroundJobs = [], isLoading: isLoadingJobs } = useQuery({
+  const {
+    data: backgroundJobs = [],
+    isLoading: isLoadingJobs,
+    isLoadingError: isJobsLoadingError,
+    refetch: refetchJobs,
+  } = useQuery({
     queryKey: JOBS_QUERY_KEY,
     queryFn: getBackgroundJobs,
-    refetchInterval: hasPendingJobs ? 2000 : false,
+    // Ночная джоба может выполняться долго (или зависнуть в Processing после
+    // падения воркера) — её опрашиваем реже, чем только что запущенную вручную.
+    refetchInterval: (query) => {
+      if (hasPendingJobs) return 2000;
+      return query.state.data?.some(isJobInProgress) ? 5000 : false;
+    },
   });
 
   // Снимаем джобу с опроса, как только её lastExecution изменился относительно
@@ -224,6 +258,8 @@ export default function SettingsPage() {
 
           {isLoading ? (
             <Skeleton className="h-24 w-full" />
+          ) : isLoadingError ? (
+            <QueryError title="Не удалось загрузить список репозиториев" onRetry={() => void refetchProjects()} />
           ) : projects.length === 0 ? (
             <EmptyState className="py-8">Список пуст — ни один репозиторий не помечен как внутрикорпоративный</EmptyState>
           ) : (
@@ -334,6 +370,8 @@ export default function SettingsPage() {
 
           {isLoadingJobs ? (
             <Skeleton className="h-48 w-full" />
+          ) : isJobsLoadingError ? (
+            <QueryError title="Не удалось загрузить фоновые задачи" onRetry={() => void refetchJobs()} />
           ) : backgroundJobs.length === 0 ? (
             <EmptyState className="py-8">Нет зарегистрированных фоновых задач</EmptyState>
           ) : (

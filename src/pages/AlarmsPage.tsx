@@ -5,6 +5,8 @@ import { format } from 'date-fns';
 import { ru } from 'date-fns/locale';
 import { HelpCircle, Moon, Palmtree } from 'lucide-react';
 import EmptyState from '../components/EmptyState';
+import QueryError from '../components/QueryError';
+import ActivityLink, { isClickOnLink } from '../components/ActivityLink';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -16,7 +18,7 @@ export type AlarmKind = 'silent' | 'late';
 
 const FILTERS: { kind: AlarmKind; icon: typeof HelpCircle; description: string }[] = [
   { kind: 'silent', icon: HelpCircle, description: 'Нет коммитов больше двух недель' },
-  { kind: 'late', icon: Moon, description: 'Коммиты после 20:00 или до 6:00' },
+  { kind: 'late', icon: Moon, description: 'Коммиты после 20:00 или до 6:00 UTC' },
 ];
 
 // Пустое множество трактуем как «показать всё» — та же семантика, что у фильтра
@@ -42,7 +44,7 @@ export default function AlarmsPage() {
   const navigate = useNavigate();
   const [activeKinds, setActiveKinds] = useState<Set<AlarmKind>>(new Set(['silent', 'late']));
 
-  const { data: alarms = [], isLoading } = useQuery({
+  const { data: alarms = [], isLoading, isLoadingError, refetch } = useQuery({
     queryKey: ['alarms'],
     queryFn: getAlarms,
   });
@@ -88,6 +90,8 @@ export default function AlarmsPage() {
 
       {isLoading ? (
         <Skeleton className="h-48 w-full" />
+      ) : isLoadingError ? (
+        <QueryError title="Не удалось загрузить алармы" onRetry={() => void refetch()} />
       ) : visible.length === 0 ? (
         <EmptyState>
           {alarms.length === 0
@@ -107,7 +111,7 @@ export default function AlarmsPage() {
               {visible.map((alarm) => (
                 <TableRow
                   key={alarm.employeeId}
-                  onClick={() => navigate(`/activity/${alarm.employeeId}`)}
+                  onClick={(e) => !isClickOnLink(e) && navigate(`/activity/${alarm.employeeId}`)}
                   className="cursor-pointer"
                 >
                   <TableCell>
@@ -117,7 +121,9 @@ export default function AlarmsPage() {
                       ) : (
                         <Moon className="size-4 shrink-0 text-indigo-500" />
                       )}
-                      <span className="truncate font-medium">{alarm.fullName}</span>
+                      <ActivityLink employeeId={alarm.employeeId} className="truncate font-medium">
+                        {alarm.fullName}
+                      </ActivityLink>
                       {alarm.isOnVacation && (
                         <Badge variant="secondary">
                           <Palmtree /> В отпуске

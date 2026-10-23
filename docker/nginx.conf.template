@@ -21,12 +21,14 @@ server {
     location /assets/ {
         expires 1y;
         add_header Cache-Control "public, immutable";
+        include /etc/nginx/snippets/security-headers.conf;
         try_files $uri =404;
     }
 
     # SPA fallback: все неизвестные пути отдают index.html, роутинг делает React Router.
     location / {
         add_header Cache-Control "no-cache";
+        include /etc/nginx/snippets/security-headers.conf;
         try_files $uri $uri/ /index.html;
     }
 

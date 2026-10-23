@@ -3,6 +3,9 @@ import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { getAvailableMonths, getCatalog, getHallOfFame, type AvailableMonth, type HallOfFameEntry } from '../api/achievements';
 import EmptyState from '../components/EmptyState';
+import QueryError from '../components/QueryError';
+import ActivityLink, { isClickOnLink } from '../components/ActivityLink';
+import { Skeleton } from '@/components/ui/skeleton';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import MonthPicker, { formatMonthLabel } from '../components/MonthPicker';
 import AchievementBadges from '../components/AchievementBadges';
@@ -44,7 +47,12 @@ export default function HallOfFamePage() {
     queryFn: getCatalog,
   });
 
-  const { data: months = [] } = useQuery({
+  const {
+    data: months = [],
+    isLoading: isLoadingMonths,
+    isLoadingError: isMonthsError,
+    refetch: refetchMonths,
+  } = useQuery({
     queryKey: ['achievementMonths'],
     queryFn: getAvailableMonths,
   });
@@ -55,7 +63,12 @@ export default function HallOfFamePage() {
     }
   }, [months, selectedMonth]);
 
-  const { data: entries = [] } = useQuery({
+  const {
+    data: entries = [],
+    isLoading: isLoadingEntries,
+    isLoadingError: isEntriesError,
+    refetch: refetchEntries,
+  } = useQuery({
     queryKey: ['hallOfFame', selectedMonth?.year, selectedMonth?.month],
     queryFn: () => getHallOfFame(selectedMonth!.year, selectedMonth!.month),
     enabled: selectedMonth !== null,
@@ -75,11 +88,19 @@ export default function HallOfFamePage() {
 
       <AchievementLegend catalog={catalog} />
 
-      {months.length === 0 && <EmptyState>Пока нет ни одного месячного снимка ачивок</EmptyState>}
-
-      {months.length > 0 && sortedEntries.length === 0 && <EmptyState>За выбранный месяц ачивок не было</EmptyState>}
-
-      {sortedEntries.length > 0 && (
+      {/* Месяцы пришли, но эффект ещё не выбрал месяц по умолчанию — это тоже загрузка,
+          иначе на один кадр мелькнуло бы «ачивок не было». */}
+      {isLoadingMonths || isLoadingEntries || (months.length > 0 && selectedMonth === null) ? (
+        <Skeleton className="h-48 w-full" />
+      ) : isMonthsError ? (
+        <QueryError title="Не удалось загрузить список месяцев" onRetry={() => void refetchMonths()} />
+      ) : months.length === 0 ? (
+        <EmptyState>Пока нет ни одного месячного снимка ачивок</EmptyState>
+      ) : isEntriesError ? (
+        <QueryError title="Не удалось загрузить зал достижений" onRetry={() => void refetchEntries()} />
+      ) : sortedEntries.length === 0 ? (
+        <EmptyState>За выбранный месяц ачивок не было</EmptyState>
+      ) : (
         <div className="overflow-x-auto rounded-lg border bg-background">
           <Table>
             <TableHeader>
@@ -93,10 +114,12 @@ export default function HallOfFamePage() {
               {sortedEntries.map((entry) => (
                 <TableRow
                   key={entry.employeeId}
-                  onClick={() => navigate(`/activity/${entry.employeeId}`)}
+                  onClick={(e) => !isClickOnLink(e) && navigate(`/activity/${entry.employeeId}`)}
                   className="cursor-pointer"
                 >
-                  <TableCell className="font-medium">{entry.fullName}</TableCell>
+                  <TableCell className="font-medium">
+                    <ActivityLink employeeId={entry.employeeId}>{entry.fullName}</ActivityLink>
+                  </TableCell>
                   <TableCell className="text-right tabular-nums text-muted-foreground">{entry.achievements.length}</TableCell>
                   <TableCell>
                     <AchievementBadges achievements={entry.achievements} size="lg" className="justify-end" />
