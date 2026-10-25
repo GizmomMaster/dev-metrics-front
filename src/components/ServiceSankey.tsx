@@ -83,20 +83,23 @@ export default function ServiceSankey({ commitData, reviewData }: ServiceSankeyP
   // Группировка по сервису: для коммитов сервисом выступает имя репозитория
   // (serviceName у CommitMetricDto = Repository.Name — отдельного поля нет),
   // для МР/апрувов — ServiceName из review_metrics (может быть null у ещё не
-  // размеченных записей — попадают в "Без сервиса").
+  // размеченных записей — попадают в "Без сервиса"). МР и апрувы — только по
+  // смёрженным МР, как в плитках над графиком: иначе сумма здесь расходилась бы
+  // с цифрой в плитке.
   const grouped = useMemo(() => {
+    const mergedReviews = reviewData.filter((r) => r.mergedAt);
     const map = new Map<string, number>();
     if (selectedMetric === 'commits') {
       for (const c of commitData) {
         map.set(c.serviceName, (map.get(c.serviceName) || 0) + c.numberOfCommits);
       }
     } else if (selectedMetric === 'reviews') {
-      for (const r of reviewData) {
+      for (const r of mergedReviews) {
         const key = r.serviceName ?? NO_SERVICE;
         map.set(key, (map.get(key) || 0) + 1); // 1 строка = 1 МР
       }
     } else {
-      for (const r of reviewData) {
+      for (const r of mergedReviews) {
         const key = r.serviceName ?? NO_SERVICE;
         map.set(key, (map.get(key) || 0) + r.approvalIterations);
       }
