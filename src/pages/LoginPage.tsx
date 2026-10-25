@@ -1,4 +1,5 @@
 import { useState, FormEvent } from 'react';
+import axios from 'axios';
 import { Eye, EyeOff } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { Button } from '@/components/ui/button';
@@ -21,8 +22,15 @@ export default function LoginPage() {
     try {
       await login({ username, password });
       window.location.href = '/';
-    } catch {
-      setError('Неверный логин или пароль');
+    } catch (e) {
+      // Про учётные данные — только 400/401; сетевая ошибка или 5xx — не повод
+      // говорить пользователю, что он ошибся в пароле.
+      const status = axios.isAxiosError(e) ? e.response?.status : undefined;
+      setError(
+        status === 400 || status === 401
+          ? 'Неверный логин или пароль'
+          : 'Не удалось войти: сервер недоступен или вернул ошибку'
+      );
     } finally {
       setLoading(false);
     }

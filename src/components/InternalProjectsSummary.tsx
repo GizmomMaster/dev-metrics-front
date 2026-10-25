@@ -26,6 +26,10 @@ export default function InternalProjectsSummary({
   issueData,
   internalRepoNames,
 }: InternalProjectsSummaryProps) {
+  // МР и апрувы — только по смёрженным МР, как в плитках страницы активности:
+  // иначе итог здесь расходился бы с цифрой в плитке.
+  const mergedReviews = useMemo(() => reviewData.filter((r) => r.mergedAt), [reviewData]);
+
   const rows: ProjectRow[] = useMemo(
     () =>
       internalRepoNames.map((name) => ({
@@ -33,14 +37,14 @@ export default function InternalProjectsSummary({
         commits: commitData
           .filter((c) => c.serviceName === name)
           .reduce((sum, c) => sum + c.numberOfCommits, 0),
-        mergeRequests: reviewData.filter((r) => r.repositoryName === name).length,
-        approvals: reviewData
+        mergeRequests: mergedReviews.filter((r) => r.repositoryName === name).length,
+        approvals: mergedReviews
           .filter((r) => r.repositoryName === name)
           .reduce((sum, r) => sum + r.approvalIterations, 0),
         issuesCreated: issueData.filter((i) => i.repositoryName === name && i.wasCreatedByEmployee).length,
         issuesClosed: issueData.filter((i) => i.repositoryName === name && i.wasClosedByEmployee).length,
       })),
-    [commitData, reviewData, issueData, internalRepoNames]
+    [commitData, mergedReviews, issueData, internalRepoNames]
   );
 
   const total = useMemo(

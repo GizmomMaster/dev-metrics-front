@@ -22,12 +22,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const logout = useCallback(async () => {
     try {
       await apiLogout();
-    } finally {
-      // Токены локально стёрты в любом случае — даже если сервер недоступен,
-      // оставаться на защищённой странице бессмысленно.
-      setIsAuthenticated(false);
-      redirectToLogin();
+    } catch {
+      // Сервер недоступен или отозвать токен не удалось. Токены локально уже
+      // стёрты (см. apiLogout), а пробросить ошибку некуда — вызывающий код
+      // её не ждёт, и она ушла бы в консоль необработанным отказом.
     }
+    // Оставаться на защищённой странице без токенов бессмысленно.
+    setIsAuthenticated(false);
+    redirectToLogin();
   }, []);
 
   return (

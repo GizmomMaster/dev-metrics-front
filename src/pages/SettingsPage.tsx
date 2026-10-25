@@ -209,13 +209,15 @@ export default function SettingsPage() {
 
   const busy = createMutation.isPending || updateMutation.isPending || deleteMutation.isPending;
 
+  // Enter в поле обходит disabled у кнопки — без проверки busy двойное нажатие
+  // отправило бы два запроса.
   const handleCreate = () => {
-    if (!newName.trim()) return;
+    if (busy || !newName.trim()) return;
     createMutation.mutate(newName.trim());
   };
 
   const handleSaveEdit = () => {
-    if (!editingId || !editingName.trim()) return;
+    if (busy || !editingId || !editingName.trim()) return;
     updateMutation.mutate({ id: editingId, repoName: editingName.trim() });
   };
 
